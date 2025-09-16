@@ -50,7 +50,6 @@ public class BookServiceImpl implements BookService {
         return bookMapper.toDTO(book);
     }
 
-    // Método fallback
     public BookDTO getBookByIdFallback(Long id, Throwable throwable) {
         // Retorna un objeto vacío o con valores por defecto en caso de fallo
         return BookDTO.builder()
@@ -112,6 +111,41 @@ public class BookServiceImpl implements BookService {
         book.setAvailable(false);
         bookRepository.save(book);
     }
+
+
+    public BookDTO reduceBookUnits(Long id) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id " + id));
+
+        if (!book.isActive()) {
+            throw new BadRequestException("Book with id " + id + " is inactive");
+        }
+
+        if (book.getUnits() <= 0) {
+            throw new BadRequestException("Book with id " + id + " has no available units");
+        }
+
+        book.setUnits(book.getUnits() - 1);
+        book.setAvailable(book.getUnits() > 0);
+
+        return bookMapper.toDTO(bookRepository.save(book));
+    }
+
+    public BookDTO increaseBookUnits(Long id) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id " + id));
+
+        if (!book.isActive()) {
+            throw new BadRequestException("Book with id " + id + " is inactive");
+        }
+
+        book.setUnits(book.getUnits() + 1);
+        book.setAvailable(true);
+
+        return bookMapper.toDTO(bookRepository.save(book));
+    }
+
+
 
     private void validateBookData(BookDTO bookDTO) {
         if (bookDTO.getTitle() == null || bookDTO.getTitle().isBlank()) {

@@ -42,4 +42,15 @@ public class BookController {
         bookService.deleteBook(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}/reduce-units")
+    public ResponseEntity<BookDTO> reduceBookUnits(@PathVariable Long id) {
+        return ResponseEntity.ok(bookService.reduceBookUnits(id));
+    }
+
+    @PutMapping("/{id}/increase-units")
+    public ResponseEntity<BookDTO> increaseBookUnits(@PathVariable Long id) {
+        return ResponseEntity.ok(bookService.increaseBookUnits(id));
+    }
+
 }

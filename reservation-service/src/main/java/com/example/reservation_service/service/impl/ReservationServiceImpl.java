@@ -39,7 +39,7 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     public ReservationDTO createReservation(Long userId, Long bookId, ReservationDTO reservationDTO) {
-        // Validar existencia de user y book vía Feign
+        // 1. Validar existencia de user y book vía Feign
         UserDTO user = userClient.getUserById(userId);
         BookDTO book = bookClient.getBookById(bookId);
 
@@ -51,9 +51,16 @@ public class ReservationServiceImpl implements ReservationService {
             throw new BadRequestException("Book with id " + bookId + " has no available units");
         }
 
+        // 2. Reducir stock del libro en book-service
+        BookDTO updatedBook = bookClient.reduceBookUnits(bookId);
+        if (updatedBook.getUnits() < 0) {
+            throw new BadRequestException("Book with id " + bookId + " could not reduce units");
+        }
+
+        // 3. Crear la reserva
         Reservation reservation = Reservation.builder()
                 .userId(user.getId())
-                .bookId(book.getId())
+                .bookId(updatedBook.getId())
                 .reservationDate(LocalDate.now())
                 .returnDate(reservationDTO.getReturnDate())
                 .active(true)
@@ -61,6 +68,7 @@ public class ReservationServiceImpl implements ReservationService {
 
         return reservationMapper.toDTO(reservationRepository.save(reservation));
     }
+
 
     @Override
     public ReservationDTO returnBook(Long reservationId) {
@@ -71,8 +79,12 @@ public class ReservationServiceImpl implements ReservationService {
             throw new BadRequestException("Reservation is already closed");
         }
 
+        // 1. Marcar como devuelta
         reservation.setActive(false);
         reservation.setReturnDate(LocalDate.now());
+
+        // 2. Incrementar stock del libro en book-service
+        bookClient.increaseBookUnits(reservation.getBookId());
 
         return reservationMapper.toDTO(reservationRepository.save(reservation));
     }
