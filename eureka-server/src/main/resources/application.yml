@@ -1,0 +1,15 @@
+server:
+  port: 8761
+
+eureka:
+  client:
+    register-with-eureka: false  # El servidor no se registra a sí mismo
+    fetch-registry: false        # No busca otros servicios
+  server:
+    enable-self-preservation: false  # Para desarrollo, deshabilita autopreservación
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"  # Para ver estado desde /actuator
