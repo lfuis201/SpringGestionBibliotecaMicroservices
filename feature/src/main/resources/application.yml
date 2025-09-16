@@ -1,0 +1,27 @@
+server:
+  port: 8082              # elige un puerto distinto al user-service
+
+spring:
+  application:
+    name: book-service
+  datasource:
+    url: jdbc:postgresql://postgres-user:5433/bookdb   # usa la misma db o crea otra
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
