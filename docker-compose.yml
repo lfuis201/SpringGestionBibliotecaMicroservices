@@ -44,6 +44,74 @@ services:
     networks:
       - library-net
 
+  # ------------------- PostgreSQL for Book Service -------------------
+  postgres-book:
+    image: postgres:15-alpine
+    container_name: postgres-book
+    environment:
+      POSTGRES_DB: booksdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    networks:
+      - library-net
+    volumes:
+      - postgres-book-data:/var/lib/postgresql/data
+
+  # ------------------- Book Service -------------------
+  book-service:
+    build:
+      context: ./book-service
+    container_name: book-service
+    depends_on:
+      - eureka-server
+      - postgres-book
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-book:5432/booksdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    ports:
+      - "8082:8082"
+    networks:
+      - library-net
+
+  # ------------------- PostgreSQL for Reservation Service -------------------
+  postgres-reservation:
+    image: postgres:15-alpine
+    container_name: postgres-reservation
+    environment:
+      POSTGRES_DB: reservationsdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    networks:
+      - library-net
+    volumes:
+      - postgres-reservation-data:/var/lib/postgresql/data
+
+  # ------------------- Reservation Service -------------------
+  reservation-service:
+    build:
+      context: ./reservation-service
+    container_name: reservation-service
+    depends_on:
+      - eureka-server
+      - postgres-reservation
+      - user-service
+      - book-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-reservation:5432/reservationsdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    ports:
+      - "8083:8083"
+    networks:
+      - library-net
+
   # ------------------- API Gateway -------------------
   api-gateway:
     build:
@@ -52,6 +120,8 @@ services:
     depends_on:
       - eureka-server
       - user-service
+      - book-service
+      - reservation-service
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
     ports:
@@ -67,3 +137,5 @@ networks:
 # ------------------- Volumes -------------------
 volumes:
   postgres-user-data:
+  postgres-book-data:
+  postgres-reservation-data:
