@@ -1,0 +1,49 @@
+server:
+  port: 8083   # Puerto para reservation-service
+
+spring:
+  application:
+    name: reservation-service
+  datasource:
+    url: jdbc:postgresql://postgres-reservation:5432/reservationsdb
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+# Feign + Resilience4j
+feign:
+  circuitbreaker:
+    enabled: true   # activa circuit breaker en feign
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      userServiceCB:               # Para llamadas al user-service
+        registerHealthIndicator: true
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+
+      bookServiceCB:               # Para llamadas al book-service
+        registerHealthIndicator: true
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
