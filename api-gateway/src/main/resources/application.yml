@@ -11,10 +11,66 @@ spring:
           enabled: true
           lower-case-service-id: true
       routes:
-        - id: book-service
+        # Auth Service - RUTAS PÚBLICAS (sin token)
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+
+        # User Service - Rutas específicas PÚBLICAS para FeignClient (MÁS ESPECÍFICAS PRIMERO)
+        - id: user-service-email
+          uri: lb://user-service
+          predicates:
+            - Path=/users/email/**
+
+        - id: user-service-validate
+          uri: lb://user-service
+          predicates:
+            - Path=/users/validate
+            - Method=POST
+
+        - id: user-service-create
+          uri: lb://user-service
+          predicates:
+            - Path=/users
+            - Method=POST
+
+        # User Service - RUTAS PROTEGIDAS (requieren token)
+        - id: user-service-protected
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users,/api/users/**
+          filters:
+            - RewritePath=/api/users(?<segment>.*), /users${segment}
+
+        # Book Service - RUTAS PROTEGIDAS (requieren token)
+        - id: book-service-protected
           uri: lb://book-service
           predicates:
-            - Path=/books/**
+            - Path=/api/books/**
+          filters:
+            - RewritePath=/api/books/(?<segment>.*), /books/${segment}
+
+      # Configuración CORS global
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            exposedHeaders:
+              - Authorization
+              - Content-Type
+
+# Configuración JWT - MISMA CLAVE QUE AUTH-SERVICE
+jwt:
+  secret: super-secreto-1234567890-mas-seguro-2025
 
 eureka:
   client:
@@ -23,10 +79,17 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
   instance:
-    prefer-ip-address: true  # Agrega esto si usas contenedores
+    prefer-ip-address: true
 
 management:
   endpoints:
     web:
       exposure:
         include: "*"
+
+# Configuración de logging para debug
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.example.api_gateway: DEBUG
+    org.springframework.security: INFO
