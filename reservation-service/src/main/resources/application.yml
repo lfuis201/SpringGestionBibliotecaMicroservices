@@ -47,3 +47,25 @@ resilience4j:
         minimumNumberOfCalls: 3
         failureRateThreshold: 50
         waitDurationInOpenState: 5s
+
+sonar:
+  projectKey: proyect01
+  projectName: proyect01
+  projectVersion: "1.0"
+
+  host:
+    url: "http://localhost:9000"
+
+  login: "sqp_4540e2e57397679b76af9dc027ee310f57cbfcde"
+
+  sourceEncoding: "UTF-8"
+
+  sources: "src/main/java"
+  tests: "src/test/java"
+
+  java:
+    coveragePlugin: "jacoco"
+
+  coverage:
+    jacoco:
+      xmlReportPaths: "target/site/jacoco/jacoco.xml"
