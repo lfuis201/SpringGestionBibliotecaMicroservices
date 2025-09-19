@@ -51,6 +51,15 @@ spring:
           filters:
             - RewritePath=/api/books/(?<segment>.*), /books/${segment}
 
+        # Reservation Service - RUTAS PROTEGIDAS (requieren token)
+        - id: reservation-service-protected
+          uri: lb://reservation-service
+          predicates:
+            - Path=/api/reservations,/api/reservations/**
+          filters:
+            - RewritePath=/api/reservations(?<segment>.*), /reservations${segment}
+
+
       # Configuración CORS global
       globalcors:
         cors-configurations:

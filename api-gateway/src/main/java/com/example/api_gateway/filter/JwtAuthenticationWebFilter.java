@@ -1,12 +1,12 @@
 package com.example.api_gateway.filter;
 
+import com.example.api_gateway.exception.UnauthorizedException;
 import com.example.api_gateway.service.JwtService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -40,38 +40,32 @@ public class JwtAuthenticationWebFilter implements WebFilter {
 
         // Extraer token del header Authorization
         String token = extractToken(request);
-
         if (!StringUtils.hasText(token)) {
             log.warn("No token provided for protected endpoint: {} {}", method, path);
-            return unauthorizedResponse(exchange, "Token not provided");
+            return Mono.error(new UnauthorizedException("Token not provided"));
         }
 
-        try {
-            return authenticateToken(token)
-                    .flatMap(auth -> {
-                        log.debug("User {} authenticated successfully for: {} {}", auth.getName(), method, path);
+        return authenticateToken(token)
+                .flatMap(auth -> {
+                    log.debug("User {} authenticated successfully for: {} {}", auth.getName(), method, path);
 
-                        // Agregar información del usuario autenticado en los headers
-                        ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                                .header("X-User-Id", auth.getName())
-                                .header("X-Authenticated", "true")
-                                .build();
+                    // Agregar información del usuario autenticado en los headers
+                    ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                            .header("X-User-Id", auth.getName())
+                            .header("X-Authenticated", "true")
+                            .build();
 
-                        ServerWebExchange modifiedExchange = exchange.mutate()
-                                .request(modifiedRequest)
-                                .build();
+                    ServerWebExchange modifiedExchange = exchange.mutate()
+                            .request(modifiedRequest)
+                            .build();
 
-                        return chain.filter(modifiedExchange)
-                                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
-                    })
-                    .onErrorResume(JwtException.class, ex -> {
-                        log.error("JWT validation failed: {}", ex.getMessage());
-                        return unauthorizedResponse(exchange, "Invalid token: " + ex.getMessage());
-                    });
-        } catch (Exception e) {
-            log.error("Authentication error: {}", e.getMessage());
-            return unauthorizedResponse(exchange, "Authentication failed");
-        }
+                    return chain.filter(modifiedExchange)
+                            .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
+                })
+                .onErrorResume(JwtException.class, ex -> {
+                    log.error("JWT validation failed: {}", ex.getMessage());
+                    return Mono.error(new UnauthorizedException("Invalid token: " + ex.getMessage()));
+                });
     }
 
     private boolean isPublicEndpoint(String path, String method) {
@@ -105,18 +99,11 @@ public class JwtAuthenticationWebFilter implements WebFilter {
             Jws<Claims> claims = jwtService.validateToken(token);
             String username = claims.getBody().getSubject();
 
-            if (StringUtils.hasText(username)) {
-                return new UsernamePasswordAuthenticationToken(username, null, List.of());
+            if (!StringUtils.hasText(username)) {
+                throw new UnauthorizedException("Invalid token subject");
             }
-            throw new JwtException("Invalid token subject");
-        });
-    }
 
-    private Mono<Void> unauthorizedResponse(ServerWebExchange exchange, String message) {
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        exchange.getResponse().getHeaders().add("Content-Type", "application/json");
-        String body = "{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}";
-        var buffer = exchange.getResponse().bufferFactory().wrap(body.getBytes());
-        return exchange.getResponse().writeWith(Mono.just(buffer));
+            return new UsernamePasswordAuthenticationToken(username, null, List.of());
+        });
     }
 }
